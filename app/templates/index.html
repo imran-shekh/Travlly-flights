@@ -36,19 +36,22 @@
     <button class="btn btn-primary" onclick="searchFlights()">🔍 Search Flights</button>
   </div>
 
-  <h3 class="text-success">Available Flights:</h3>
-  <ul class="list-group mt-3" id="flightsList">
-    <!-- Flights will be populated here -->
-  </ul>
+  <div id="resultsSection">
+    <h3 class="text-success">Outbound Flights:</h3>
+    <ul class="list-group mt-3" id="outboundList"></ul>
+
+    <h3 class="text-warning mt-5">Return Flights:</h3>
+    <ul class="list-group mt-3" id="returnList"></ul>
+  </div>
 </div>
 
 <script>
   function swapLocations() {
-    const from = document.getElementById("fromInput");
-    const to = document.getElementById("toInput");
-    const temp = from.value;
-    from.value = to.value;
-    to.value = temp;
+    const fromInput = document.getElementById("fromInput");
+    const toInput = document.getElementById("toInput");
+    const temp = fromInput.value;
+    fromInput.value = toInput.value;
+    toInput.value = temp;
   }
 
   async function searchFlights() {
@@ -56,18 +59,66 @@
     const destination = document.getElementById("toInput").value.toUpperCase();
     const date = document.getElementById("dateInput").value;
 
-    if (data.flights && data.flights.length > 0) {
-      data.flights.forEach(flight => {
-        const li = document.createElement("li");
-        li.classList.add("list-group-item");
-        li.textContent = `✈️ Flight ${flight.flight_number} — ${flight.departure} → ${flight.arrival}`;
-        flightsList.appendChild(li);
-      });
-    } else {
-      flightsList.innerHTML = '<li class="list-group-item text-danger">No flights found.</li>';
+    const outboundList = document.getElementById("outboundList");
+    const returnList = document.getElementById("returnList");
+    outboundList.innerHTML = "";
+    returnList.innerHTML = "";
+
+    if (!origin || !destination || !date) {
+      alert("Please fill all fields.");
+      return;
     }
-    
+
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/search?origin=${origin}&destination=${destination}&date=${date}`);
+      const data = await response.json();
+
+      if (data.outbound && data.outbound.length > 0) {
+        data.outbound.forEach(flight => {
+          const li = document.createElement("li");
+          li.classList.add("list-group-item");
+          li.innerHTML = `
+            ✈️ <strong>${flight.airline}</strong><br>
+            🛬 ${flight.departure} (${formatDateTime(flight.departure_time)}) ➡️ ${flight.arrival} (${formatDateTime(flight.arrival_time)})<br>
+            💸 Price: ₹${flight.price}<br>
+            🕒 Duration: ${flight.duration}
+          `;
+          outboundList.appendChild(li);
+        });
+      } else {
+        outboundList.innerHTML = '<li class="list-group-item text-danger">No outbound flights found.</li>';
+      }
+
+      if (data.return && data.return.length > 0) {
+        data.return.forEach(flight => {
+          const li = document.createElement("li");
+          li.classList.add("list-group-item");
+          li.innerHTML = `
+            ✈️ <strong>${flight.airline}</strong><br>
+            🛬 ${flight.departure} (${formatDateTime(flight.departure_time)}) ➡️ ${flight.arrival} (${formatDateTime(flight.arrival_time)})<br>
+            💸 Price: ₹${flight.price}<br>
+            🕒 Duration: ${flight.duration}
+          `;
+
+          returnList.appendChild(li);
+        });
+      } else {
+        returnList.innerHTML = '<li class="list-group-item text-danger">No return flights found.</li>';
+      }
+    } catch (error) {
+      outboundList.innerHTML = '<li class="list-group-item text-danger">Error loading flights.</li>';
+      returnList.innerHTML = '';
+      console.error("❌ Error:", error);
+    }
+  }
+  function formatDateTime(datetimeStr) {
+    const date = new Date(datetimeStr);
+    const options = { day: 'numeric', month: 'short', year: 'numeric' };
+    const datePart = date.toLocaleDateString(undefined, options);
+    const timePart = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    return `${datePart}, ${timePart}`;
   }
 </script>
+
 </body>
 </html>
